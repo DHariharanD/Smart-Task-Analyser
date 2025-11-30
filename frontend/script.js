@@ -257,27 +257,61 @@ async function handleBulkTaskSubmit(e) {
             return;
         }
         
-        // Process and save each task to database
-        const savePromises = tasksData.map(async (task, index) => {
+        // First pass: Save all tasks WITHOUT dependencies to get their database IDs
+        console.log('📝 First pass: Saving tasks without dependencies...');
+        const savedTasks = [];
+        
+        for (let i = 0; i < tasksData.length; i++) {
+            const task = tasksData[i];
             const processedTask = {
                 title: task.title,
                 due_date: task.due_date,
                 due_time: task.due_time || '23:59',
                 estimated_hours: task.estimated_hours || 1.0,
                 importance: task.importance || 5,
-                dependencies: task.dependencies || [],
+                dependencies: [], // Save without dependencies first
                 role: task.role || 'developer',
                 notes: task.notes || '',
             };
             
-            return addTask(processedTask);
+            const savedTask = await addTask(processedTask);
+            savedTasks.push(savedTask);
+            console.log(`Task ${i+1} saved with ID: ${savedTask.id}`);
+        }
+        
+        // Create mapping: JSON array index (1-based) -> database ID
+        const indexToIdMap = {};
+        savedTasks.forEach((task, index) => {
+            indexToIdMap[index + 1] = task.id; // Map 1-based index to database ID
         });
         
-        await Promise.all(savePromises);
+        console.log('Index to ID mapping:', indexToIdMap);
+        
+        // Second pass: Update tasks with corrected dependencies
+        console.log('🔄 Second pass: Updating dependencies...');
+        for (let i = 0; i < tasksData.length; i++) {
+            const originalTask = tasksData[i];
+            const savedTask = savedTasks[i];
+            
+            if (originalTask.dependencies && originalTask.dependencies.length > 0) {
+                // Map JSON indices to actual database IDs
+                const mappedDependencies = originalTask.dependencies.map(depIndex => {
+                    const mappedId = indexToIdMap[depIndex];
+                    console.log(`  Mapping dependency ${depIndex} -> ${mappedId}`);
+                    return mappedId;
+                }).filter(id => id !== undefined);
+                
+                // Update the task with correct dependencies
+                savedTask.dependencies = mappedDependencies;
+                await updateTaskInDatabase(savedTask);
+                console.log(`Task "${savedTask.title}" dependencies updated:`, mappedDependencies);
+            }
+        }
         
         // Reload tasks from database to get complete data with IDs and notes
         await loadTasksFromDatabase();
         
+        console.log('✅ All tasks loaded with corrected dependencies');
         switchTab('single'); // Switch back to single tab after loading
     } catch (error) {
         showError(`Invalid JSON: ${error.message}`);
@@ -400,6 +434,28 @@ async function deleteTaskFromDatabase(taskId) {
         }
     } catch (error) {
         console.error('Failed to delete task from database:', error);
+        throw error;
+    }
+}
+
+async function updateTaskInDatabase(task) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/tasks/${task.id}/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(task),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update task');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to update task in database:', error);
         throw error;
     }
 }
@@ -682,6 +738,22 @@ async function analyzeTasks(strategy, role, customWeights = null) {
         console.log('Total tasks:', tasks.length);
         console.log('First task:', JSON.stringify(tasks[0], null, 2));
         console.log('====================');
+        
+        // Check for circular dependencies BEFORE sending to backend
+        console.log('Checking for circular dependencies...');
+        const circularCheck = detectCircularDependenciesClient(tasks);
+        console.log('Circular check result:', circularCheck);
+        console.log('Has cycles?', circularCheck.hasCycles);
+        console.log('Cycles found:', circularCheck.cycles);
+        
+        if (circularCheck.hasCycles) {
+            console.log('🚨 CIRCULAR DEPENDENCIES DETECTED! Showing modal...');
+            hideLoading();
+            showCircularDependencyModal(circularCheck);
+            return; // Prevent analysis
+        }
+        
+        console.log('✅ No circular dependencies found. Proceeding with analysis...');
         
         const requestBody = {
             tasks: tasks,
@@ -1770,4 +1842,190 @@ function getCustomWeights() {
         effort: effort,
         dependencies: dependencies
     };
+}
+
+// Circular Dependency Detection (Client-side)
+function detectCircularDependenciesClient(taskList) {
+    const taskLookup = {};
+    const graph = {};
+    const taskIds = new Set();
+    
+    console.log('🔍 Building dependency graph...');
+    
+    // Build task lookup and forward graph (task -> its dependencies)
+    taskList.forEach(task => {
+        const taskId = task.id;
+        taskIds.add(taskId);
+        taskLookup[taskId] = task;
+        
+        // Initialize graph entry for this task
+        if (!graph[taskId]) {
+            graph[taskId] = [];
+        }
+        
+        // Add forward edges: this task depends on these tasks
+        const deps = task.dependencies || [];
+        deps.forEach(depId => {
+            // Only add if the dependency exists in our task list
+            if (taskList.some(t => t.id == depId)) {
+                graph[taskId].push(depId);
+            }
+        });
+    });
+    
+    console.log('Graph:', graph);
+    console.log('Task IDs:', Array.from(taskIds));
+    
+    const cycles = [];
+    const affectedTaskIds = new Set();
+    const visited = new Set();
+    const recStack = new Set();
+    const path = [];
+    
+    function dfs(node) {
+        if (recStack.has(node)) {
+            // Found a cycle!
+            const cycleStart = path.indexOf(node);
+            const cycle = [...path.slice(cycleStart), node];
+            console.log('🔴 CYCLE FOUND:', cycle);
+            cycles.push(cycle);
+            cycle.forEach(id => affectedTaskIds.add(id));
+            return true;
+        }
+        
+        if (visited.has(node)) {
+            return false;
+        }
+        
+        visited.add(node);
+        recStack.add(node);
+        path.push(node);
+        
+        // Visit all dependencies of this node
+        if (graph[node]) {
+            for (const neighbor of graph[node]) {
+                dfs(neighbor);
+            }
+        }
+        
+        recStack.delete(node);
+        path.pop();
+        return false;
+    }
+    
+    // Check all tasks
+    console.log('Starting DFS for all tasks...');
+    taskIds.forEach(taskId => {
+        if (!visited.has(taskId)) {
+            console.log('Checking task:', taskId);
+            dfs(taskId);
+        }
+    });
+    
+    console.log('Total cycles found:', cycles.length);
+    
+    return {
+        hasCycles: cycles.length > 0,
+        cycles: cycles,
+        affectedTaskIds: Array.from(affectedTaskIds),
+        taskLookup: taskLookup
+    };
+}
+
+function showCircularDependencyModal(circularCheck) {
+    const modal = document.getElementById('circular-dependency-modal');
+    const cyclesList = document.getElementById('circular-cycles-list');
+    const affectedTasksList = document.getElementById('affected-tasks-list');
+    const closeBtn = document.getElementById('circular-modal-close');
+    const closeBtn2 = document.getElementById('circular-modal-close-btn');
+    
+    // Format cycles with task titles
+    const cycleStrings = circularCheck.cycles.map(cycle => {
+        const titles = cycle.map(id => {
+            const task = circularCheck.taskLookup[id];
+            return task ? `"${task.title}" (ID: ${id})` : `ID: ${id}`;
+        });
+        return titles.join(' → ');
+    });
+    
+    cyclesList.innerHTML = cycleStrings.map(cycle => 
+        `<li style="margin-bottom: 10px; color: #721c24; font-weight: 500;">${cycle}</li>`
+    ).join('');
+    
+    // Show affected tasks with option to edit
+    const affectedTasksHTML = circularCheck.affectedTaskIds.map(taskId => {
+        const task = circularCheck.taskLookup[taskId];
+        if (!task) return '';
+        
+        const depNames = (task.dependencies || []).map(depId => {
+            const depTask = circularCheck.taskLookup[depId];
+            return depTask ? depTask.title : `ID: ${depId}`;
+        }).join(', ');
+        
+        return `
+            <div style="padding: 10px; margin-bottom: 8px; background: #f8f9fa; border-left: 3px solid #dc3545; border-radius: 3px;">
+                <strong>${task.title}</strong> (ID: ${taskId})<br>
+                <small style="color: #666;">Dependencies: ${depNames || 'None'}</small><br>
+                <button class="btn btn-sm" onclick="editTaskDependencies(${taskId})" style="margin-top: 5px; font-size: 12px; padding: 4px 8px;">
+                    Edit Dependencies
+                </button>
+            </div>
+        `;
+    }).join('');
+    
+    affectedTasksList.innerHTML = affectedTasksHTML;
+    
+    // Show modal
+    modal.style.display = 'flex';
+    
+    // Close handlers
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+    
+    closeBtn.onclick = closeModal;
+    closeBtn2.onclick = closeModal;
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    };
+}
+
+function editTaskDependencies(taskId) {
+    // Close circular modal first
+    document.getElementById('circular-dependency-modal').style.display = 'none';
+    
+    // Find the task
+    const task = tasks.find(t => t.id == taskId);
+    if (!task) {
+        showError('Task not found');
+        return;
+    }
+    
+    // Scroll to top and switch to single tab
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    switchTab('single');
+    
+    // Pre-fill the form with task data
+    setTimeout(() => {
+        document.getElementById('task-title').value = task.title || '';
+        document.getElementById('due-date').value = task.due_date || '';
+        document.getElementById('due-time').value = task.due_time || '';
+        document.getElementById('estimated-hours').value = Math.floor(task.estimated_hours || 0);
+        document.getElementById('estimated-minutes').value = Math.round(((task.estimated_hours || 0) % 1) * 60);
+        document.getElementById('importance').value = task.importance || 5;
+        document.getElementById('task-role').value = task.role || 'developer';
+        document.getElementById('task-notes').value = task.notes || '';
+        
+        // Set dependencies (clear them or allow editing)
+        selectedDependencyIds = [...(task.dependencies || [])];
+        updateDependencyDisplay();
+        
+        // Show a message
+        showError(`Editing task: "${task.title}". Remove problematic dependencies and save.`);
+        
+        // Remove the task from the list temporarily so user can re-add with fixed deps
+        removeTask(taskId);
+    }, 300);
 }

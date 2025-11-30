@@ -347,6 +347,39 @@
         </div>
     </div>
 
+    <!-- Circular Dependency Warning Modal -->
+    <div id="circular-dependency-modal" class="notes-modal" style="display: none;">
+        <div class="notes-modal-content circular-warning-modal">
+            <div class="notes-modal-header" style="background: #dc3545; color: white;">
+                <h3>⚠️ Circular Dependencies Detected</h3>
+                <button class="notes-modal-close" id="circular-modal-close">&times;</button>
+            </div>
+            <div class="notes-modal-body">
+                <p style="margin-bottom: 15px; font-weight: bold;">
+                    Analysis cannot proceed due to circular dependencies in your tasks.
+                </p>
+                <p style="margin-bottom: 15px;">
+                    The following dependency cycles were found:
+                </p>
+                <ul id="circular-cycles-list" style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                    <!-- Cycles will be inserted here -->
+                </ul>
+                <p style="color: #856404; background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <strong>How to fix:</strong> Remove or modify the dependencies that create these cycles.
+                </p>
+                <div id="affected-tasks-section" style="margin-top: 15px;">
+                    <p style="font-weight: bold; margin-bottom: 10px;">Affected Tasks:</p>
+                    <div id="affected-tasks-list" style="max-height: 200px; overflow-y: auto;">
+                        <!-- Task list will be inserted here -->
+                    </div>
+                </div>
+            </div>
+            <div class="notes-modal-footer">
+                <button class="btn btn-secondary" id="circular-modal-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Immediate inline script to prevent form submission
         document.addEventListener('DOMContentLoaded', function() {

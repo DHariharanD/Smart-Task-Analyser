@@ -2137,6 +2137,55 @@ input[type="range"]::-moz-range-track {
     color: var(--accent-blue);
 }
 
+/* Circular Dependency Warning Modal */
+.circular-warning-modal {
+    max-width: 700px;
+}
+
+.circular-warning-modal .notes-modal-header {
+    background: #dc3545;
+    color: white;
+}
+
+.circular-warning-modal .notes-modal-close {
+    color: white;
+}
+
+.circular-warning-modal .notes-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#circular-cycles-list {
+    list-style: none;
+    padding: 0;
+}
+
+#circular-cycles-list li {
+    padding: 10px;
+    margin-bottom: 10px;
+    background: white;
+    border-left: 4px solid #dc3545;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    word-break: break-word;
+}
+
+#affected-tasks-list .btn-sm {
+    font-size: 12px;
+    padding: 4px 10px;
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+#affected-tasks-list .btn-sm:hover {
+    background: var(--accent-blue-hover);
+}
+
 /* ============================================
    Responsive Design
    ============================================ */
