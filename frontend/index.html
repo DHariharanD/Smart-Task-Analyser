@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Task Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Smart Task Analyzer</h1>
+            <p class="subtitle">Intelligently prioritize your tasks based on urgency, importance, effort, and dependencies</p>
+        </header>
+
+        <!-- Main Content: Two-Panel Layout -->
+        <main class="main-content">
+            <!-- Left Panel: Input -->
+            <section class="panel input-panel">
+                <div class="panel-header">
+                    <h2>Task Input</h2>
+                </div>
+
+                <div class="panel-body">
+                    <!-- Input Method Tabs -->
+                    <div class="tabs">
+                        <button class="tab-button active" data-tab="single">Single Task</button>
+                        <button class="tab-button" data-tab="bulk">Bulk JSON</button>
+                    </div>
+
+                    <!-- Single Task Form -->
+                    <div class="tab-content active" id="single-tab">
+                        <form id="single-task-form" class="task-form">
+                            <div class="form-group">
+                                <label for="title">Title <span class="required">*</span></label>
+                                <input type="text" id="title" name="title" required placeholder="Enter task title">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="due-date">Due Date <span class="required">*</span></label>
+                                    <input type="date" id="due-date" name="due_date" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="due-time">Due Time <span class="required">*</span></label>
+                                    <input type="time" id="due-time" name="due_time" required value="17:00">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Estimated Time <span class="required">*</span></label>
+                                    <div class="time-input-group">
+                                        <div class="time-input-item">
+                                            <input type="number" id="estimated-hours" name="estimated_hours"
+                                                   min="0" max="999" required placeholder="8" class="time-input">
+                                            <span class="time-label">hours</span>
+                                        </div>
+                                        <div class="time-input-item">
+                                            <input type="number" id="estimated-minutes" name="estimated_minutes"
+                                                   min="0" max="59" required placeholder="0" class="time-input">
+                                            <span class="time-label">minutes</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="importance">Importance: <span id="importance-value">5</span>/10 <span class="required">*</span></label>
+                                    <input type="range" id="importance" name="importance"
+                                           min="1" max="10" required value="5" step="1">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="dependencies">Dependencies</label>
+                                <div class="dependency-dropdown-container">
+                                    <button type="button" class="dependency-dropdown-trigger" id="dependency-dropdown-trigger">
+                                        <span class="dependency-trigger-text">Select Dependencies</span>
+                                        <span class="dependency-count" id="dependency-count" style="display: none;">0 selected</span>
+                                        <span class="dropdown-arrow">▼</span>
+                                    </button>
+                                    <div class="dependency-dropdown-menu" id="dependency-dropdown-menu" style="display: none;">
+                                        <div class="dependency-dropdown-content">
+                                            <div id="dependency-options" class="dependency-options">
+                                                <div class="dependency-empty">No other tasks available</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="dependency-selected-display" id="dependency-selected-display" style="display: none;">
+                                        <div class="selected-dependencies-header">Selected:</div>
+                                        <div class="selected-dependencies-list" id="selected-dependencies-list"></div>
+                                    </div>
+                                </div>
+                                <small class="form-hint">Select tasks this task depends on</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="task-notes">Notes (Optional)</label>
+                                <textarea id="task-notes" name="notes" rows="3"
+                                          placeholder="Add notes, resources, or additional information..."></textarea>
+                                <small class="form-hint">Click on task cards to view notes</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="role">Role</label>
+                                <select id="role" name="role">
+                                    <option value="developer">Developer</option>
+                                    <option value="program_manager">Program Manager</option>
+                                </select>
+                            </div>
+
+                            <button type="button" class="btn btn-primary" id="add-task-btn">Add Task</button>
+                        </form>
+                    </div>
+
+                    <!-- Bulk JSON Input -->
+                    <div class="tab-content" id="bulk-tab">
+                        <form id="bulk-task-form" class="task-form">
+                            <div class="form-group">
+                                <label for="bulk-json">JSON Task List <span class="required">*</span></label>
+                                <textarea id="bulk-json" name="bulk_json" rows="15" required
+                                          placeholder='[&#10;  {&#10;    "title": "Task 1",&#10;    "due_date": "2024-12-31",&#10;    "due_time": "17:00",&#10;    "estimated_hours": 8.0,&#10;    "importance": 7,&#10;    "dependencies": [],&#10;    "role": "developer",&#10;    "notes": "Meeting with stakeholders"&#10;  },&#10;  {&#10;    "title": "Task 2",&#10;    "due_date": "2024-12-30",&#10;    "due_time": "15:00",&#10;    "estimated_hours": 4.0,&#10;    "importance": 9,&#10;    "dependencies": ["task_1"],&#10;    "role": "developer",&#10;    "notes": ""&#10;  }&#10;]'></textarea>
+                                <small class="form-hint">Enter tasks as JSON array. Each task should have: title, due_date, due_time, estimated_hours, importance, dependencies, role, notes (optional)</small>
+                            </div>
+
+                            <button type="button" class="btn btn-primary" id="load-tasks-btn">Load Tasks</button>
+                        </form>
+                    </div>
+
+                    <!-- Strategy and Role Selection -->
+                    <div class="strategy-section">
+                        <div class="form-group">
+                            <label for="strategy">Prioritization Strategy</label>
+                            <select id="strategy" name="strategy">
+                                <option value="smart_balance">Smart Balance</option>
+                                <option value="fastest_wins">Fastest Wins</option>
+                                <option value="high_impact">High Impact</option>
+                                <option value="deadline_driven">Deadline Driven</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="role-selector-group">
+                            <label for="analysis-role">Role (for Smart Balance)</label>
+                            <select id="analysis-role" name="analysis_role">
+                                <option value="developer">Developer</option>
+                                <option value="program_manager">Program Manager</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom Weights Section -->
+                        <div class="custom-weights-section" id="custom-weights-section" style="display: none;">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="custom-weights-checkbox">
+                                    <span>Customize Weights</span>
+                                </label>
+                            </div>
+                            
+                            <div class="weights-controls" id="weights-controls" style="display: none;">
+                                <div class="weight-slider-group">
+                                    <label for="weight-urgency">
+                                        Urgency: <span id="weight-urgency-value">30</span>%
+                                    </label>
+                                    <input type="range" id="weight-urgency" min="0" max="100" value="30" step="1">
+                                </div>
+                                
+                                <div class="weight-slider-group">
+                                    <label for="weight-importance">
+                                        Importance: <span id="weight-importance-value">30</span>%
+                                    </label>
+                                    <input type="range" id="weight-importance" min="0" max="100" value="30" step="1">
+                                </div>
+                                
+                                <div class="weight-slider-group">
+                                    <label for="weight-effort">
+                                        Effort: <span id="weight-effort-value">20</span>%
+                                    </label>
+                                    <input type="range" id="weight-effort" min="0" max="100" value="20" step="1">
+                                </div>
+                                
+                                <div class="weight-slider-group">
+                                    <label for="weight-dependencies">
+                                        Dependencies: <span id="weight-dependencies-value">20</span>%
+                                    </label>
+                                    <input type="range" id="weight-dependencies" min="0" max="100" value="20" step="1">
+                                </div>
+                                
+                                <div class="weight-total">
+                                    <strong>Total: <span id="weight-total-value" class="weight-total-value">100</span>%</strong>
+                                    <span id="weight-error" class="weight-error" style="display: none;">Weights must sum to 100%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" id="analyze-btn" class="btn btn-primary btn-large" disabled>
+                            Analyze Tasks
+                        </button>
+                        <button type="button" id="suggest-btn" class="btn btn-secondary">
+                            What should I do today?
+                        </button>
+                    </div>
+
+                    <!-- Current Tasks List -->
+                    <div class="current-tasks-section">
+                        <h3>Current Tasks (<span id="task-count">0</span>)</h3>
+                        <div id="current-tasks-list" class="current-tasks-list">
+                            <p class="empty-state">No tasks added yet. Add tasks using the form above.</p>
+                        </div>
+                        <button type="button" id="clear-tasks-btn" class="btn btn-secondary btn-small" style="display: none;">
+                            Clear All Tasks
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Results -->
+            <section class="panel results-panel">
+                <div class="panel-header">
+                    <h2>Analysis Results</h2>
+                    <div class="view-toggle">
+                        <button class="toggle-btn active" data-view="list">List View</button>
+                        <button class="toggle-btn" data-view="matrix">Eisenhower Matrix</button>
+                    </div>
+                </div>
+
+                <div class="panel-body">
+                    <!-- Loading State -->
+                    <div id="loading-state" class="loading-state" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Analyzing tasks...</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div id="error-state" class="error-state" style="display: none;">
+                        <div class="error-icon">⚠️</div>
+                        <h3>Error</h3>
+                        <p id="error-message"></p>
+                    </div>
+
+                    <!-- Circular Dependency Warning Banner -->
+                    <div id="circular-warning-banner" class="circular-warning-banner" style="display: none;">
+                        <div class="warning-banner-header">
+                            <span class="warning-icon">⚠️</span>
+                            <h3>CIRCULAR DEPENDENCIES DETECTED</h3>
+                            <button type="button" id="dismiss-warning-btn" class="btn-dismiss">✕</button>
+                        </div>
+                        <div class="warning-banner-content">
+                            <p id="circular-warning-message"></p>
+                            <ul id="circular-chains-list"></ul>
+                            <p class="warning-suggestion">💡 <strong>Suggestion:</strong> Break the cycle by removing one dependency from the chain above.</p>
+                        </div>
+                    </div>
+
+                    <!-- Today's Focus Section -->
+                    <div id="todays-focus-section" class="todays-focus-section" style="display: none;">
+                        <div class="focus-header">
+                            <h2>🎯 Today's Focus</h2>
+                            <p class="focus-subtitle">Top 3 tasks recommended for you</p>
+                        </div>
+                        <div id="suggestions-container" class="suggestions-container">
+                            <!-- Suggestions will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Results: List View -->
+                    <div id="results-list-view" class="results-content">
+                        <div class="empty-results">
+                            <div class="empty-icon">📊</div>
+                            <h3>No analysis yet</h3>
+                            <p>Add tasks and click "Analyze Tasks" to see prioritized results.</p>
+                        </div>
+                    </div>
+
+                    <!-- Results: Eisenhower Matrix View -->
+                    <div id="results-matrix-view" class="results-content" style="display: none;">
+                        <div class="matrix-info" id="matrix-info" style="display: none;">
+                            <p class="matrix-info-text">
+                                <strong>Thresholds:</strong> 
+                                Urgency ≥ <span id="urgency-threshold">0</span> | 
+                                Importance ≥ <span id="importance-threshold">0</span>
+                            </p>
+                        </div>
+                        <div class="matrix-container">
+                            <div class="matrix-grid">
+                                <div class="matrix-cell matrix-header">
+                                    <div></div>
+                                    <div class="matrix-label">Urgent</div>
+                                    <div class="matrix-label">Not Urgent</div>
+                                </div>
+                                <div class="matrix-cell">
+                                    <div class="matrix-label">Important</div>
+                                    <div class="matrix-quadrant" id="quadrant-important-urgent">
+                                        <h4>Do First</h4>
+                                        <div class="quadrant-tasks"></div>
+                                    </div>
+                                    <div class="matrix-quadrant" id="quadrant-important-not-urgent">
+                                        <h4>Schedule</h4>
+                                        <div class="quadrant-tasks"></div>
+                                    </div>
+                                </div>
+                                <div class="matrix-cell">
+                                    <div class="matrix-label">Not Important</div>
+                                    <div class="matrix-quadrant" id="quadrant-not-important-urgent">
+                                        <h4>Delegate</h4>
+                                        <div class="quadrant-tasks"></div>
+                                    </div>
+                                    <div class="matrix-quadrant" id="quadrant-not-important-not-urgent">
+                                        <h4>Eliminate</h4>
+                                        <div class="quadrant-tasks"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warnings Section -->
+                    <div id="warnings-section" class="warnings-section" style="display: none;">
+                        <h3>⚠️ Warnings</h3>
+                        <ul id="warnings-list"></ul>
+                    </div>
+
+                    <!-- Circular Dependencies Section -->
+                    <div id="circular-deps-section" class="circular-deps-section" style="display: none;">
+                        <h3>🔄 Circular Dependencies Detected</h3>
+                        <ul id="circular-deps-list"></ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notes Popup Modal -->
+    <div id="notes-modal" class="notes-modal" style="display: none;">
+        <div class="notes-modal-content">
+            <div class="notes-modal-header">
+                <h3 id="notes-modal-title">Task Notes</h3>
+                <button class="notes-modal-close" id="notes-modal-close">&times;</button>
+            </div>
+            <div class="notes-modal-body">
+                <p id="notes-modal-text">No notes available for this task.</p>
+            </div>
+            <div class="notes-modal-footer">
+                <button class="btn btn-secondary notes-modal-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Immediate inline script to prevent form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Inline script loaded');
+            const form = document.getElementById('single-task-form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    alert('Form submission prevented by inline script!');
+                    console.log('Form submission prevented');
+                    return false;
+                });
+                console.log('Form submit prevention added');
+            } else {
+                console.error('Form not found by inline script');
+            }
+        });
+    </script>
+    <script src="script.js?v=3"></script>
+</body>
+</html>
+
